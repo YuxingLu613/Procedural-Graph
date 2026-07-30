@@ -290,53 +290,254 @@ function renderSurvival() {
 monthSlider.addEventListener("input", renderSurvival);
 
 const evoModes = {
-  baseline: { score: 87.5, delta: "starting point", copy: "Without a graph, the solver relies on its full flat trajectory at every step.", nodes: 3 },
-  expert: { score: 58.93, delta: "−28.57 pts", copy: "A flawed expert topology can impose bottlenecks and reduce success.", nodes: 7 },
-  repair: { score: 92.86, delta: "+33.93 pts over expert initialization", copy: "Online evolution locates and prunes the human-imposed bottlenecks.", nodes: 9 },
-  scratch: { score: 91.07, delta: "+3.57 pts over unguided", copy: "A graph bootstrapped without human prior becomes highly competitive.", nodes: 8 },
+  baseline: {
+    score: 87.5,
+    delta: "starting point",
+    copy: "Without a graph, the solver relies on its full flat trajectory at every step.",
+    caption: "Flat trajectory · no procedural structure",
+    graph: { nodes: [], edges: [] },
+  },
+  expert: {
+    score: 58.93,
+    delta: "−28.57 pts",
+    copy: "A flawed expert topology can impose bottlenecks and reduce success.",
+    caption: "Rigid prior · one failure-prone bottleneck",
+    graph: {
+      nodes: [
+        { id: "start", label: "START", x: .07, y: .50, status: "endpoint" },
+        { id: "read", label: "READ", x: .25, y: .50 },
+        { id: "infer", label: "INFER", x: .43, y: .50 },
+        { id: "edit", label: "EDIT", x: .61, y: .50, status: "bottleneck" },
+        { id: "respond", label: "RESPOND", x: .79, y: .50 },
+        { id: "end", label: "END", x: .95, y: .50, status: "endpoint" },
+      ],
+      edges: [
+        ["start", "read"], ["read", "infer"], ["infer", "edit"],
+        ["edit", "respond"], ["respond", "end"],
+      ],
+    },
+  },
+  repair: {
+    score: 92.86,
+    delta: "+33.93 pts over expert initialization",
+    copy: "Online evolution locates and prunes the human-imposed bottlenecks.",
+    caption: "Repaired prior · new checks bypass the bottleneck",
+    graph: {
+      nodes: [
+        { id: "start", label: "START", x: .06, y: .50, status: "endpoint" },
+        { id: "read", label: "READ", x: .23, y: .50 },
+        { id: "infer", label: "INFER", x: .41, y: .28 },
+        { id: "edit", label: "EDIT", x: .41, y: .72, status: "bottleneck" },
+        { id: "verify", label: "VERIFY", x: .61, y: .28, status: "added" },
+        { id: "repair", label: "REPAIR", x: .61, y: .72, status: "added" },
+        { id: "respond", label: "RESPOND", x: .81, y: .50 },
+        { id: "end", label: "END", x: .96, y: .50, status: "endpoint" },
+      ],
+      edges: [
+        ["start", "read"], ["read", "infer"], ["read", "edit"],
+        ["infer", "verify", "added"], ["edit", "repair", "added"],
+        ["verify", "respond", "added"], ["repair", "respond", "added"],
+        ["respond", "end"], ["infer", "respond", "pruned"],
+      ],
+    },
+  },
+  scratch: {
+    score: 91.07,
+    delta: "+3.57 pts over unguided",
+    copy: "A graph bootstrapped without human prior becomes highly competitive.",
+    caption: "Evolved from scratch · compact parallel procedure",
+    graph: {
+      nodes: [
+        { id: "start", label: "START", x: .06, y: .50, status: "endpoint" },
+        { id: "read", label: "READ", x: .24, y: .50, status: "added" },
+        { id: "plan", label: "PLAN", x: .43, y: .28, status: "added" },
+        { id: "act", label: "ACT", x: .43, y: .72, status: "added" },
+        { id: "verify", label: "VERIFY", x: .63, y: .28, status: "added" },
+        { id: "revise", label: "REVISE", x: .63, y: .72, status: "added" },
+        { id: "respond", label: "RESPOND", x: .82, y: .50, status: "added" },
+        { id: "end", label: "END", x: .97, y: .50, status: "endpoint" },
+      ],
+      edges: [
+        ["start", "read", "added"], ["read", "plan", "added"],
+        ["read", "act", "added"], ["plan", "verify", "added"],
+        ["act", "revise", "added"], ["verify", "respond", "added"],
+        ["revise", "respond", "added"], ["respond", "end", "added"],
+      ],
+    },
+  },
 };
 
-function drawMiniGraph(count) {
-  const container = document.querySelector("#mini-graph");
-  container.innerHTML = "";
-  const positions = [[8,48],[25,18],[28,74],[48,42],[63,13],[66,73],[84,38],[90,83],[45,88]];
-  for (let index = 0; index < count - 1; index += 1) {
-    const [x1, y1] = positions[index];
-    const [x2, y2] = positions[index + 1];
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const edge = document.createElement("span");
-    edge.className = "mini-edge";
-    edge.style.left = `${x1}%`;
-    edge.style.top = `${y1}%`;
-    edge.style.width = `${Math.sqrt(dx * dx + dy * dy)}%`;
-    edge.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
-    container.appendChild(edge);
+const topologyCanvas = document.querySelector("#topology-canvas");
+const topologyContext = topologyCanvas.getContext("2d");
+let currentEvoMode = "baseline";
+let topologyFrame;
+
+function roundedRect(context, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.lineTo(x + width - r, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + r);
+  context.lineTo(x + width, y + height - r);
+  context.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  context.lineTo(x + r, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - r);
+  context.lineTo(x, y + r);
+  context.quadraticCurveTo(x, y, x + r, y);
+  context.closePath();
+}
+
+function drawArrow(context, from, to, status, opacity) {
+  const color = status === "pruned" ? "#ed8c3a" : status === "added" ? "#1f7a4d" : "#8b948e";
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy);
+  const unitX = dx / distance;
+  const unitY = dy / distance;
+  const startX = from.x + unitX * from.radiusX;
+  const startY = from.y + unitY * from.radiusY;
+  const endX = to.x - unitX * (to.radiusX + 7);
+  const endY = to.y - unitY * (to.radiusY + 7);
+  const bend = Math.abs(dy) > 24 ? (dy > 0 ? 9 : -9) : 0;
+  const controlX = (startX + endX) / 2;
+  const controlY = (startY + endY) / 2 + bend;
+
+  context.save();
+  context.globalAlpha = opacity;
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = status === "added" ? 2.2 : 1.45;
+  context.setLineDash(status === "pruned" ? [5, 5] : []);
+  context.beginPath();
+  context.moveTo(startX, startY);
+  context.quadraticCurveTo(controlX, controlY, endX, endY);
+  context.stroke();
+
+  const angle = Math.atan2(endY - controlY, endX - controlX);
+  context.setLineDash([]);
+  context.beginPath();
+  context.moveTo(endX, endY);
+  context.lineTo(endX - 7 * Math.cos(angle - Math.PI / 6), endY - 7 * Math.sin(angle - Math.PI / 6));
+  context.lineTo(endX - 7 * Math.cos(angle + Math.PI / 6), endY - 7 * Math.sin(angle + Math.PI / 6));
+  context.closePath();
+  context.fill();
+  context.restore();
+}
+
+function drawTopology(modeName, progress = 1) {
+  const mode = evoModes[modeName];
+  const box = sizeCanvas(topologyCanvas, topologyContext);
+  topologyContext.clearRect(0, 0, box.width, box.height);
+
+  if (!mode.graph.nodes.length) {
+    const centerX = box.width / 2;
+    const centerY = box.height / 2 - 4;
+    topologyContext.save();
+    topologyContext.strokeStyle = "rgba(102,112,105,.36)";
+    topologyContext.lineWidth = 1.5;
+    topologyContext.setLineDash([6, 7]);
+    topologyContext.beginPath();
+    topologyContext.arc(centerX, centerY, Math.min(68, box.height * .29), 0, Math.PI * 2);
+    topologyContext.stroke();
+    topologyContext.setLineDash([]);
+    topologyContext.fillStyle = "#667069";
+    topologyContext.textAlign = "center";
+    topologyContext.font = "500 11px monospace";
+    topologyContext.fillText("NO GRAPH", centerX, centerY + 4);
+    topologyContext.font = "9px sans-serif";
+    topologyContext.fillStyle = "rgba(102,112,105,.72)";
+    topologyContext.fillText("unstructured trajectory history", centerX, centerY + 25);
+    topologyContext.restore();
+    return;
   }
-  positions.slice(0, count).forEach(([x, y], index) => {
-    const node = document.createElement("span");
-    node.className = "mini-node";
-    node.style.left = `${x}%`;
-    node.style.top = `${y}%`;
-    if (index === count - 1) node.style.background = "#b9e769";
-    container.appendChild(node);
+
+  const compact = box.width < 560;
+  const nodeWidth = compact ? 50 : 62;
+  const nodeHeight = compact ? 24 : 28;
+  const paddingX = compact ? 28 : 36;
+  const paddingY = 24;
+  const nodeMap = new Map(mode.graph.nodes.map((node) => [
+    node.id,
+    {
+      ...node,
+      x: paddingX + node.x * (box.width - paddingX * 2),
+      y: paddingY + node.y * (box.height - paddingY * 2),
+      radiusX: nodeWidth / 2,
+      radiusY: nodeHeight / 2,
+    },
+  ]));
+
+  mode.graph.edges.forEach(([source, target, status = "retained"], index) => {
+    const edgeProgress = Math.max(0, Math.min(1, progress * mode.graph.edges.length - index));
+    if (edgeProgress > 0) drawArrow(topologyContext, nodeMap.get(source), nodeMap.get(target), status, edgeProgress);
   });
+
+  mode.graph.nodes.forEach((node, index) => {
+    const point = nodeMap.get(node.id);
+    const nodeProgress = Math.max(0, Math.min(1, progress * mode.graph.nodes.length - index));
+    if (!nodeProgress) return;
+    const scale = .82 + nodeProgress * .18;
+    const width = nodeWidth * scale;
+    const height = nodeHeight * scale;
+    const x = point.x - width / 2;
+    const y = point.y - height / 2;
+    const fill = node.status === "added" ? "#dff2b7"
+      : node.status === "bottleneck" ? "#fff0e2"
+      : node.status === "endpoint" ? "#173f2c" : "#fffdf8";
+    const stroke = node.status === "bottleneck" ? "#ed8c3a" : "#1f7a4d";
+    topologyContext.save();
+    topologyContext.globalAlpha = nodeProgress;
+    roundedRect(topologyContext, x, y, width, height, 7);
+    topologyContext.fillStyle = fill;
+    topologyContext.fill();
+    topologyContext.strokeStyle = stroke;
+    topologyContext.lineWidth = node.status === "added" ? 2 : 1.35;
+    topologyContext.stroke();
+    topologyContext.fillStyle = node.status === "endpoint" ? "#fffdf8" : "#173f2c";
+    topologyContext.textAlign = "center";
+    topologyContext.textBaseline = "middle";
+    topologyContext.font = `${compact ? 7 : 8}px monospace`;
+    topologyContext.fillText(node.label, point.x, point.y + .5);
+    if (node.status === "bottleneck") {
+      topologyContext.fillStyle = "#ed8c3a";
+      topologyContext.beginPath();
+      topologyContext.arc(x + width - 3, y + 3, 4, 0, Math.PI * 2);
+      topologyContext.fill();
+    }
+    topologyContext.restore();
+  });
+}
+
+function animateTopology(modeName) {
+  cancelAnimationFrame(topologyFrame);
+  const started = performance.now();
+  const duration = 520;
+  function frame(now) {
+    const progress = Math.min(1, (now - started) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    drawTopology(modeName, eased);
+    if (progress < 1) topologyFrame = requestAnimationFrame(frame);
+  }
+  topologyFrame = requestAnimationFrame(frame);
 }
 
 document.querySelectorAll(".evo-mode").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll(".evo-mode").forEach((item) => item.classList.toggle("active", item === button));
     const mode = evoModes[button.dataset.evo];
+    currentEvoMode = button.dataset.evo;
     document.querySelector("#evo-score").textContent = `${mode.score.toFixed(2)}%`;
     document.querySelector("#evo-delta").textContent = mode.delta;
     document.querySelector("#evo-copy").textContent = mode.copy;
-    drawMiniGraph(mode.nodes);
+    document.querySelector("#topology-caption").textContent = mode.caption;
+    animateTopology(currentEvoMode);
   });
 });
 
 function handleResize() {
   drawHero();
   drawSurvival();
+  drawTopology(currentEvoMode);
 }
 window.addEventListener("resize", handleResize);
 window.addEventListener("scroll", () => {
@@ -344,6 +545,6 @@ window.addEventListener("scroll", () => {
   document.querySelector("#scroll-progress").style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
 }, { passive: true });
 
-drawMiniGraph(evoModes.baseline.nodes);
+drawTopology(currentEvoMode);
 renderSurvival();
 replayHero();

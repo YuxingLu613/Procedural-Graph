@@ -184,15 +184,34 @@ h1 em, h2 em { color: var(--green); font-weight: 500; }
 .evo-mode { width: 100%; border: 0; border-bottom: 1px solid var(--line); padding: 23px 14px; background: transparent; text-align: left; cursor: pointer; font: 500 18px var(--serif); }
 .evo-mode span { display: inline-block; width: 44px; color: var(--muted); font: 10px var(--mono); }
 .evo-mode.active { background: var(--green-dark); color: var(--white); }
-.evolution-display { position: relative; min-height: 390px; padding: 38px; overflow: hidden; }
-.evo-score { display: flex; flex-direction: column; position: relative; z-index: 2; }
+.evolution-display { min-height: 465px; padding: 32px 38px 28px; overflow: hidden; }
+.evolution-topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 30px; }
+.evo-score { display: flex; flex-direction: column; }
 .evo-score span { font: 10px var(--mono); color: var(--muted); text-transform: uppercase; }
-.evo-score strong { margin-top: 8px; font: 500 72px var(--serif); color: var(--green); }
+.evo-score strong { margin-top: 7px; font: 500 68px/.9 var(--serif); color: var(--green); }
 .evo-score em { font: 10px var(--mono); color: var(--orange); }
-.mini-graph { position: absolute; right: 30px; top: 30px; width: 53%; height: 260px; }
-.mini-node { position: absolute; width: 14px; height: 14px; border: 2px solid var(--green); background: var(--white); border-radius: 50%; transition: .4s; }
-.mini-edge { position: absolute; height: 1px; background: var(--green); transform-origin: left center; transition: .4s; }
-.evolution-display > p { position: absolute; bottom: 30px; left: 38px; max-width: 54%; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.topology-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 11px; }
+.topology-meta > span { padding: 7px 10px; border: 1px solid var(--line); font: 9px var(--mono); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.topology-legend { display: flex; align-items: center; gap: 7px; color: var(--muted); font: 8px var(--mono); text-transform: uppercase; }
+.topology-legend i { width: 15px; height: 2px; margin-left: 6px; background: #8b948e; }
+.topology-legend i.added { height: 5px; border-radius: 4px; background: var(--lime); box-shadow: 0 0 0 1px var(--green); }
+.topology-legend i.pruned { height: 1px; background: repeating-linear-gradient(90deg, var(--orange) 0 3px, transparent 3px 6px); }
+.topology-stage {
+  height: 245px; position: relative; margin-top: 16px; overflow: hidden;
+  border: 1px solid rgba(31,122,77,.13);
+  background:
+    linear-gradient(rgba(31,122,77,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31,122,77,.045) 1px, transparent 1px),
+    linear-gradient(135deg, #fbfaf5, #f5f2e9);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+#topology-canvas { display: block; width: 100%; height: 100%; }
+#topology-caption {
+  position: absolute; left: 13px; bottom: 10px; padding: 5px 8px;
+  background: rgba(255,253,248,.9); color: var(--muted);
+  font: 8px var(--mono); letter-spacing: .04em; text-transform: uppercase;
+}
+.evolution-display > p { max-width: 650px; margin: 17px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
 .staircase { margin-top: 20px; display: grid; grid-template-columns: 34% 66%; background: var(--paper-2); min-height: 280px; }
 .staircase-copy { padding: 42px; }
 .staircase-copy > span { font: 10px var(--mono); text-transform: uppercase; color: var(--muted); }
@@ -252,8 +271,11 @@ footer a { color: var(--ink); }
   .result-summary strong { font-size: 20px; }
   .survival-chart { height: 235px; }
   .survival-stats strong { font-size: 21px; }
-  .mini-graph { opacity: .45; width: 65%; }
-  .evolution-display > p { max-width: 80%; }
+  .evolution-display { padding: 24px 18px; }
+  .evolution-topline { align-items: stretch; flex-direction: column; gap: 18px; }
+  .topology-meta { align-items: flex-start; }
+  .topology-stage { height: 255px; }
+  .evo-score strong { font-size: 58px; }
   footer { align-items: flex-start; flex-direction: column; justify-content: center; gap: 12px; }
 }
 

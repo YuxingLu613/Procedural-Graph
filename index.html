@@ -199,12 +199,29 @@
             <button class="evo-mode" data-evo="scratch"><span>05</span>Scratch + evolution</button>
           </div>
           <div class="evolution-display">
-            <div class="evo-score">
-              <span>MultiChallenge overall</span>
-              <strong id="evo-score">87.50%</strong>
-              <em id="evo-delta">starting point</em>
+            <div class="evolution-topline">
+              <div class="evo-score">
+                <span>MultiChallenge overall</span>
+                <strong id="evo-score">87.50%</strong>
+                <em id="evo-delta">starting point</em>
+              </div>
+              <div class="topology-meta">
+                <span>Conceptual topology</span>
+                <div class="topology-legend" aria-label="Topology legend">
+                  <i class="retained"></i>Retained
+                  <i class="added"></i>Added
+                  <i class="pruned"></i>Pruned
+                </div>
+              </div>
             </div>
-            <div class="mini-graph" id="mini-graph" aria-hidden="true"></div>
+            <div class="topology-stage">
+              <canvas
+                id="topology-canvas"
+                role="img"
+                aria-label="Conceptual topology for the selected graph construction mode"
+              ></canvas>
+              <span id="topology-caption">Flat trajectory · no procedural structure</span>
+            </div>
             <p id="evo-copy">Without a graph, the solver relies on its full flat trajectory at every step.</p>
           </div>
         </div>
