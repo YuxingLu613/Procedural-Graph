@@ -18,6 +18,10 @@ test("self-evolution uses a labeled canvas topology instead of DOM line segments
   assert.doesNotMatch(css, /\.mini-node\b/);
 });
 
+test("public page does not show an ICLR 2027 venue marker", () => {
+  assert.doesNotMatch(html, /ICLR 2027/i);
+});
+
 test("each evolution mode declares a distinct graph and meaningful node labels", () => {
   for (const mode of ["baseline", "expert", "repair", "scratch"]) {
     assert.match(js, new RegExp(`${mode}: \\{[\\s\\S]*?graph:`));
