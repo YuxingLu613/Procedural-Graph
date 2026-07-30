@@ -22,6 +22,12 @@ test("public page does not show an ICLR 2027 venue marker", () => {
   assert.doesNotMatch(html, /ICLR 2027/i);
 });
 
+test("static assets are versioned so local pages cannot mix old JS with new HTML", () => {
+  assert.match(html, /href="styles\.css\?v=[^"]+"/);
+  assert.match(html, /src="app\.js\?v=[^"]+"/);
+  assert.doesNotMatch(js, /drawMiniGraph|mini-graph/);
+});
+
 test("each evolution mode declares a distinct graph and meaningful node labels", () => {
   for (const mode of ["baseline", "expert", "repair", "scratch"]) {
     assert.match(js, new RegExp(`${mode}: \\{[\\s\\S]*?graph:`));
